@@ -17,12 +17,25 @@ const BODY_CONFIRMATION_PATTERNS = [
 ];
 
 const NON_APPLICATION_PATTERNS = [
+  /^#\d+\s*:/i,
   /how\s+to\s+become\s+a\s+top\s+\d+(?:\.\d+)?%\s+applicant/i,
   /ultimate\s+guide\s+to\s+cold\s+email/i,
+  /how\s+to\s+actually\s+network/i,
   /set\s+yourself\s+apart/i,
   /newsletter/i,
   /job\s+tips/i,
   /career\s+advice/i,
+  /ace\s+your\s+interview/i,
+  /personalised\s+q\s*&\s*a/i,
+  /education\s+loan/i,
+  /loan\s+application/i,
+  /credit\s+card/i,
+];
+
+const SUBJECT_APPLICATION_CONTEXT_PATTERNS = [
+  /\b(job|role|position|hiring|candidate)\b/i,
+  /application\s+(?:for|to|with|at)/i,
+  /applying\s+(?:for|to|with|at)/i,
 ];
 
 const cleanupText = (value) =>
@@ -49,15 +62,20 @@ export const inferStatus = (text = "") => {
   ) {
     return "rejected";
   }
-
   return "applied";
 };
 
-export const isJobApplicationEmail = ({ subject = "", snippet = "", bodyText = "" }) => {
+export const isJobApplicationEmail = ({ subject, snippet, bodyText }) => {
   const subjectText = subject || "";
+  const snippetText = snippet || "";
   const fullText = `${subject} ${snippet} ${bodyText}`;
+  const subjectAndSnippet = `${subjectText} ${snippetText}`;
 
-  if (NON_APPLICATION_PATTERNS.some((pattern) => pattern.test(subjectText))) {
+  if (NON_APPLICATION_PATTERNS.some((pattern) => pattern.test(subjectAndSnippet))) {
+    return false;
+  }
+
+  if (NON_APPLICATION_PATTERNS.some((pattern) => pattern.test(fullText))) {
     return false;
   }
 
@@ -65,19 +83,25 @@ export const isJobApplicationEmail = ({ subject = "", snippet = "", bodyText = "
     return true;
   }
 
-  return BODY_CONFIRMATION_PATTERNS.some((pattern) => pattern.test(fullText));
+  const hasBodyConfirmation = BODY_CONFIRMATION_PATTERNS.some((pattern) =>
+    pattern.test(fullText)
+  );
+
+  if (!hasBodyConfirmation) {
+    return false;
+  }
+
+  return SUBJECT_APPLICATION_CONTEXT_PATTERNS.some((pattern) =>
+    pattern.test(subjectAndSnippet)
+  );
 };
 
-export const extractCompany = ({ subject = "", snippet = "", bodyText = "" }) => {
+export const extractCompany = ({ subject, snippet, bodyText }) => {
   const combined = `${subject} ${snippet} ${bodyText}`;
-
   const patterns = [
     /thanks?\s+for\s+applying\s+(?:to|with)\s+([^|\-:]+)/i,
     /thank\s+you\s+for\s+applying\s+(?:to|with)\s+([^|\-:]+)/i,
-
-    // ✅ FIXED — do NOT truncate at letter x
-    /thanks?\s+for\s+filling\s+in\s+this\s+form:\s*([^\n]+)/i,
-
+    /thanks?\s+for\s+filling\s+in\s+this\s+form:\s*([^x\n]+)/i,
     /application\s+(?:to|with|at)\s+([^|\-:]+)/i,
     /\b(?:at|from)\s+([A-Z][A-Za-z0-9&\-.\s]{2,40})/,
     /^([^|\-:]+)\s*[-|:]/,
@@ -161,9 +185,7 @@ export const parseApplicationFromMessage = (message) => {
     company: extractCompany({ subject, snippet, bodyText }),
     role: extractRole({ subject, snippet, bodyText }),
     subject: subject || "(No subject)",
-    date: dateHeader
-      ? new Date(dateHeader).toLocaleDateString()
-      : "Unknown",
+    date: dateHeader ? new Date(dateHeader).toLocaleDateString() : "Unknown",
     status: inferStatus(combined),
   };
 };
