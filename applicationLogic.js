@@ -69,7 +69,7 @@ export const extractCompany = ({ subject, snippet, bodyText }) => {
   const patterns = [
     /thanks?\s+for\s+applying\s+(?:to|with)\s+([^|\-:]+)/i,
     /thank\s+you\s+for\s+applying\s+(?:to|with)\s+([^|\-:]+)/i,
-    /thanks?\s+for\s+filling\s+in\s+this\s+form:\s*([^x\n]+)/i,
+    /thanks?\s+for\s+filling\s+in\s+this\s+form:\s*([^\n]+)/i,
     /application\s+(?:to|with|at)\s+([^|\-:]+)/i,
     /\b(?:at|from)\s+([A-Z][A-Za-z0-9&\-.\s]{2,40})/,
     /^([^|\-:]+)\s*[-|:]/,
