@@ -1,0 +1,152 @@
+:root {
+  color-scheme: light;
+  --bg: #f5f7ff;
+  --card: #ffffff;
+  --text: #1b2440;
+  --muted: #657198;
+  --border: #d7def5;
+  --primary: #3b63ff;
+  --primary-hover: #264bf0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  width: min(1080px, 92vw);
+  margin: 2rem auto;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+}
+
+.hero p {
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.controls {
+  display: grid;
+  gap: 1rem;
+}
+
+.credentials {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.credentials input {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+}
+
+.credentials small {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+button {
+  border: none;
+  background: var(--primary);
+  color: white;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:enabled {
+  background: var(--primary-hover);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.status-message {
+  margin: 0;
+  color: var(--muted);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.table-header h2 {
+  margin: 0;
+}
+
+.table-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-top: 0.7rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  padding: 0.7rem;
+  vertical-align: middle;
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 1.4rem;
+}
+
+.status-select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem;
+  min-width: 130px;
+  background: white;
+}
