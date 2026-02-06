@@ -311,8 +311,10 @@ const fetchMessages = async () => {
     })
   );
 
-  return messages.map(parseApplication).filter(Boolean);
-  return messages.filter(Boolean).map(parseApplication);
+  return messages
+  .filter(Boolean)
+  .map(parseApplicationFromMessage)
+  .filter(Boolean);
 };
 
 const loadApplications = async () => {
