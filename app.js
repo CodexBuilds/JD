@@ -243,3 +243,4 @@ const loadApplications = async () => {
     refreshButton.disabled = false;
   }
 };
+
