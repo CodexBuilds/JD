@@ -150,3 +150,14 @@ th {
   min-width: 130px;
   background: white;
 }
+
+
+.edit-input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem;
+  width: 100%;
+  min-width: 160px;
+  font: inherit;
+  color: inherit;
+}

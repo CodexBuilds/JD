@@ -2,6 +2,17 @@ const SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
 const STATUS_OPTIONS = ["applied", "screening", "selected", "rejected"];
 const CLIENT_ID_STORAGE_KEY = "jobTrackerGoogleClientId";
 
+const JOB_SIGNAL_PATTERNS = [
+  /thank\s+you\s+for\s+applying/i,
+  /your\s+application\s+(?:is\s+)?(?:under\s+review|has\s+been\s+received)/i,
+  /we\s+will\s+contact\s+you\s+if\s+your\s+profile\s+matches\s+the\s+role/i,
+  /application\s+received/i,
+  /thanks\s+for\s+applying/i,
+  /under\s+review/i,
+  /hiring\s+team/i,
+  /profile\s+matches\s+the\s+role/i,
+];
+
 const clientIdInput = document.getElementById("clientId");
 const connectButton = document.getElementById("connectButton");
 const refreshButton = document.getElementById("refreshButton");
@@ -14,6 +25,8 @@ let tokenClient;
 let accessToken = "";
 let isGoogleIdentityLoaded = false;
 const statusOverrides = new Map();
+const companyOverrides = new Map();
+const roleOverrides = new Map();
 
 const setStatusMessage = (message) => {
   statusMessage.textContent = message;
@@ -69,12 +82,41 @@ const inferStatus = (text) => {
   return "applied";
 };
 
+const collectPlainTextParts = (payload) => {
+  if (!payload) {
+    return [];
+  }
+
+  const bodyChunks = [];
+  if (payload.mimeType === "text/plain" && payload.body?.data) {
+    bodyChunks.push(decodeBase64Url(payload.body.data));
+  }
+
+  if (Array.isArray(payload.parts)) {
+    payload.parts.forEach((part) => {
+      bodyChunks.push(...collectPlainTextParts(part));
+    });
+  }
+
+  return bodyChunks;
+};
+
+const isJobApplicationEmail = (content) => {
+  return JOB_SIGNAL_PATTERNS.some((pattern) => pattern.test(content));
+};
+
 const parseApplication = (message) => {
-  const headers = message.payload.headers || [];
+  const headers = message.payload?.headers || [];
   const subject = headers.find((item) => item.name === "Subject")?.value || "";
   const dateHeader = headers.find((item) => item.name === "Date")?.value || "";
   const date = dateHeader ? new Date(dateHeader).toLocaleDateString() : "Unknown";
   const snippet = message.snippet || "";
+  const bodyText = collectPlainTextParts(message.payload).join(" ");
+
+  const relevanceText = `${subject} ${snippet} ${bodyText}`;
+  if (!isJobApplicationEmail(relevanceText)) {
+    return null;
+  }
 
   const combined = `${subject} ${snippet}`;
   const companyMatch =
@@ -87,17 +129,13 @@ const parseApplication = (message) => {
   const company = companyMatch?.[1]?.trim() || "Unknown Company";
   const role = roleMatch?.[1]?.trim() || "Unknown Role";
 
-  const payloadData = message.payload.parts?.find((part) => part.mimeType === "text/plain")
-    ?.body?.data;
-  const bodyText = payloadData ? decodeBase64Url(payloadData) : "";
-
   return {
     id: message.id,
     company,
     role,
     subject: subject || "(No subject)",
     date,
-    status: inferStatus(`${subject} ${snippet} ${bodyText}`),
+    status: inferStatus(relevanceText),
   };
 };
 
@@ -105,7 +143,7 @@ const renderTable = (applications) => {
   if (!applications.length) {
     applicationsBody.innerHTML = `
       <tr>
-        <td colspan="5" class="empty-state">No job application emails found in Gmail yet.</td>
+        <td colspan="5" class="empty-state">No confirmed job application emails found in Gmail yet.</td>
       </tr>
     `;
     applicationCount.textContent = "0 applications loaded";
@@ -118,10 +156,16 @@ const renderTable = (applications) => {
   applications.forEach((application) => {
     const row = document.createElement("tr");
     const statusValue = statusOverrides.get(application.id) || application.status;
+    const companyValue = companyOverrides.get(application.id) || application.company;
+    const roleValue = roleOverrides.get(application.id) || application.role;
 
     row.innerHTML = `
-      <td>${application.company}</td>
-      <td>${application.role}</td>
+      <td>
+        <input class="edit-input" data-type="company" data-id="${application.id}" value="${companyValue.replace(/"/g, "&quot;")}" />
+      </td>
+      <td>
+        <input class="edit-input" data-type="role" data-id="${application.id}" value="${roleValue.replace(/"/g, "&quot;")}" />
+      </td>
       <td>
         <select class="status-select" data-id="${application.id}">
           ${STATUS_OPTIONS.map(
@@ -135,6 +179,7 @@ const renderTable = (applications) => {
       <td>${application.subject}</td>
       <td>${application.date}</td>
     `;
+
     applicationsBody.appendChild(row);
   });
 
@@ -144,11 +189,27 @@ const renderTable = (applications) => {
       statusOverrides.set(id, event.target.value);
     });
   });
+
+  applicationsBody.querySelectorAll(".edit-input").forEach((inputElement) => {
+    inputElement.addEventListener("input", (event) => {
+      const id = event.target.dataset.id;
+      const type = event.target.dataset.type;
+      const value = event.target.value;
+
+      if (type === "company") {
+        companyOverrides.set(id, value);
+      }
+
+      if (type === "role") {
+        roleOverrides.set(id, value);
+      }
+    });
+  });
 };
 
 const fetchMessages = async () => {
   const listResponse = await fetch(
-    "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=(job%20application%20OR%20application%20received%20OR%20thanks%20for%20applying)",
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q=(job%20application%20OR%20application%20received%20OR%20thanks%20for%20applying%20OR%20under%20review)",
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -182,7 +243,7 @@ const fetchMessages = async () => {
     })
   );
 
-  return messages.filter(Boolean).map(parseApplication);
+  return messages.map(parseApplication).filter(Boolean);
 };
 
 const loadApplications = async () => {
@@ -192,7 +253,12 @@ const loadApplications = async () => {
   try {
     const applications = await fetchMessages();
     renderTable(applications);
-    setStatusMessage("Applications loaded successfully.");
+
+    if (!applications.length) {
+      setStatusMessage("Connected, but no emails matched the strict job-application phrases yet.");
+    } else {
+      setStatusMessage("Applications loaded successfully.");
+    }
   } catch {
     setStatusMessage(
       "Could not load Gmail messages. Verify that Gmail API is enabled and OAuth Client ID is valid."
@@ -218,6 +284,7 @@ connectButton.addEventListener("click", () => {
 
   const clientId = clientIdInput.value.trim();
   persistClientId(clientId);
+
   if (!clientId) {
     setStatusMessage("Please add a Google OAuth Client ID first.");
     return;
@@ -276,7 +343,9 @@ clientIdInput.addEventListener("input", () => {
 });
 
 updateConnectButtonState();
-setStatusMessage("Loading Google Identity services... Enter your Google OAuth Client ID in the input box above.");
+setStatusMessage(
+  "Loading Google Identity services... Enter your Google OAuth Client ID in the input box above."
+);
 
 if (document.readyState === "complete") {
   initializeGoogleIdentityIfReady();

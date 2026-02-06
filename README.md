@@ -5,13 +5,14 @@ Job applications tracker website.
 ## Features
 
 - Connects to Gmail using OAuth and reads job-application-related emails.
-- Extracts and displays:
+- Extracts and displays (for emails matching explicit job-application phrases like "Thank you for applying", "under review", etc.):
   - company
   - role
   - current status
   - email subject
   - email date
 - Status dropdown values: `applied`, `screening`, `selected`, `rejected`.
+- Company and role fields are editable in the table for manual correction.
 - Improved connection flow with readiness/error messages if Google Identity fails to load.
 
 ## Run locally
