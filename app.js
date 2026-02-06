@@ -2,6 +2,34 @@ const SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
 const STATUS_OPTIONS = ["applied", "screening", "selected", "rejected"];
 const CLIENT_ID_STORAGE_KEY = "jobTrackerGoogleClientId";
 
+const SUBJECT_JOB_SIGNAL_PATTERNS = [
+  /thank\s+you\s+for\s+applying/i,
+  /thanks\s+for\s+applying\s+(?:to|with)?/i,
+  /thank\s+you\s+for\s+applying\s+(?:to|with)?/i,
+  /application\s+(?:received|submitted)/i,
+  /under\s+review/i,
+  /thanks\s+for\s+filling\s+in\s+this\s+form/i,
+];
+
+const BODY_JOB_SIGNAL_PATTERNS = [
+  /thank\s+you\s+for\s+applying/i,
+  /your\s+application\s+(?:is\s+)?(?:under\s+review|has\s+been\s+received)/i,
+  /we\s+will\s+contact\s+you\s+if\s+your\s+profile\s+matches\s+the\s+role/i,
+  /thanks\s+for\s+applying/i,
+  /application\s+received/i,
+  /under\s+review/i,
+  /hiring\s+team/i,
+  /profile\s+matches\s+the\s+role/i,
+  /thank\s+you\s+for\s+filling\s+in\s+this\s+form/i,
+];
+
+const NON_APPLICATION_PATTERNS = [
+  /how\s+to\s+become\s+a\s+top\s+\d+(?:\.\d+)?%\s+applicant/i,
+  /ultimate\s+guide\s+to\s+cold\s+email/i,
+  /set\s+yourself\s+apart/i,
+  /newsletter/i,
+  /job\s+tips/i,
+  /career\s+advice/i,
 const JOB_SIGNAL_PATTERNS = [
   /thank\s+you\s+for\s+applying/i,
   /your\s+application\s+(?:is\s+)?(?:under\s+review|has\s+been\s+received)/i,
@@ -101,6 +129,22 @@ const collectPlainTextParts = (payload) => {
   return bodyChunks;
 };
 
+const hasPatternMatch = (patterns, text) => patterns.some((pattern) => pattern.test(text));
+
+const isJobApplicationEmail = ({ subject, snippet, bodyText }) => {
+  const subjectText = subject || "";
+  const summaryText = `${subject} ${snippet}`;
+  const fullText = `${subject} ${snippet} ${bodyText}`;
+
+  if (hasPatternMatch(NON_APPLICATION_PATTERNS, summaryText)) {
+    return false;
+  }
+
+  if (hasPatternMatch(SUBJECT_JOB_SIGNAL_PATTERNS, subjectText)) {
+    return true;
+  }
+
+  return hasPatternMatch(BODY_JOB_SIGNAL_PATTERNS, fullText);
 const isJobApplicationEmail = (content) => {
   return JOB_SIGNAL_PATTERNS.some((pattern) => pattern.test(content));
 };
@@ -116,6 +160,7 @@ const parseApplication = (message) => {
   const bodyText = collectPlainTextParts(message.payload).join(" ");
 
   const relevanceText = `${subject} ${snippet} ${bodyText}`;
+  if (!isJobApplicationEmail({ subject, snippet, bodyText })) {
   if (!isJobApplicationEmail(relevanceText)) {
     return null;
   }
@@ -169,6 +214,11 @@ const renderTable = (applications) => {
 
     row.innerHTML = `
       <td>
+        <input class="edit-input" aria-label="Edit company name" placeholder="Company" data-type="company" data-id="${application.id}" value="${companyValue.replace(/"/g, "&quot;")}" />
+      </td>
+      <td>
+        <input class="edit-input" aria-label="Edit role name" placeholder="Role" data-type="role" data-id="${application.id}" value="${roleValue.replace(/"/g, "&quot;")}" />
+      </td>
         <input class="edit-input" data-type="company" data-id="${application.id}" value="${companyValue.replace(/"/g, "&quot;")}" />
       </td>
       <td>
