@@ -30,6 +30,15 @@ const NON_APPLICATION_PATTERNS = [
   /newsletter/i,
   /job\s+tips/i,
   /career\s+advice/i,
+const JOB_SIGNAL_PATTERNS = [
+  /thank\s+you\s+for\s+applying/i,
+  /your\s+application\s+(?:is\s+)?(?:under\s+review|has\s+been\s+received)/i,
+  /we\s+will\s+contact\s+you\s+if\s+your\s+profile\s+matches\s+the\s+role/i,
+  /application\s+received/i,
+  /thanks\s+for\s+applying/i,
+  /under\s+review/i,
+  /hiring\s+team/i,
+  /profile\s+matches\s+the\s+role/i,
 ];
 
 const clientIdInput = document.getElementById("clientId");
@@ -136,10 +145,14 @@ const isJobApplicationEmail = ({ subject, snippet, bodyText }) => {
   }
 
   return hasPatternMatch(BODY_JOB_SIGNAL_PATTERNS, fullText);
+const isJobApplicationEmail = (content) => {
+  return JOB_SIGNAL_PATTERNS.some((pattern) => pattern.test(content));
 };
 
 const parseApplication = (message) => {
   const headers = message.payload?.headers || [];
+const parseApplication = (message) => {
+  const headers = message.payload.headers || [];
   const subject = headers.find((item) => item.name === "Subject")?.value || "";
   const dateHeader = headers.find((item) => item.name === "Date")?.value || "";
   const date = dateHeader ? new Date(dateHeader).toLocaleDateString() : "Unknown";
@@ -148,6 +161,7 @@ const parseApplication = (message) => {
 
   const relevanceText = `${subject} ${snippet} ${bodyText}`;
   if (!isJobApplicationEmail({ subject, snippet, bodyText })) {
+  if (!isJobApplicationEmail(relevanceText)) {
     return null;
   }
 
@@ -162,6 +176,10 @@ const parseApplication = (message) => {
   const company = companyMatch?.[1]?.trim() || "Unknown Company";
   const role = roleMatch?.[1]?.trim() || "Unknown Role";
 
+  const payloadData = message.payload.parts?.find((part) => part.mimeType === "text/plain")
+    ?.body?.data;
+  const bodyText = payloadData ? decodeBase64Url(payloadData) : "";
+
   return {
     id: message.id,
     company,
@@ -169,6 +187,7 @@ const parseApplication = (message) => {
     subject: subject || "(No subject)",
     date,
     status: inferStatus(relevanceText),
+    status: inferStatus(`${subject} ${snippet} ${bodyText}`),
   };
 };
 
@@ -177,6 +196,7 @@ const renderTable = (applications) => {
     applicationsBody.innerHTML = `
       <tr>
         <td colspan="5" class="empty-state">No confirmed job application emails found in Gmail yet.</td>
+        <td colspan="5" class="empty-state">No job application emails found in Gmail yet.</td>
       </tr>
     `;
     applicationCount.textContent = "0 applications loaded";
@@ -199,6 +219,17 @@ const renderTable = (applications) => {
       <td>
         <input class="edit-input" aria-label="Edit role name" placeholder="Role" data-type="role" data-id="${application.id}" value="${roleValue.replace(/"/g, "&quot;")}" />
       </td>
+        <input class="edit-input" data-type="company" data-id="${application.id}" value="${companyValue.replace(/"/g, "&quot;")}" />
+      </td>
+      <td>
+        <input class="edit-input" data-type="role" data-id="${application.id}" value="${roleValue.replace(/"/g, "&quot;")}" />
+      </td>
+
+    const statusValue = statusOverrides.get(application.id) || application.status;
+
+    row.innerHTML = `
+      <td>${application.company}</td>
+      <td>${application.role}</td>
       <td>
         <select class="status-select" data-id="${application.id}">
           ${STATUS_OPTIONS.map(
@@ -243,6 +274,7 @@ const renderTable = (applications) => {
 const fetchMessages = async () => {
   const listResponse = await fetch(
     "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q=(job%20application%20OR%20application%20received%20OR%20thanks%20for%20applying%20OR%20under%20review)",
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=25&q=(job%20application%20OR%20application%20received%20OR%20thanks%20for%20applying)",
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -272,11 +304,15 @@ const fetchMessages = async () => {
         return null;
       }
 
+      if (!messageResponse.ok) {
+        return null;
+      }
       return messageResponse.json();
     })
   );
 
   return messages.map(parseApplication).filter(Boolean);
+  return messages.filter(Boolean).map(parseApplication);
 };
 
 const loadApplications = async () => {
@@ -293,6 +329,8 @@ const loadApplications = async () => {
       setStatusMessage("Applications loaded successfully.");
     }
   } catch {
+    setStatusMessage("Applications loaded successfully.");
+  } catch (error) {
     setStatusMessage(
       "Could not load Gmail messages. Verify that Gmail API is enabled and OAuth Client ID is valid."
     );
@@ -318,6 +356,8 @@ connectButton.addEventListener("click", () => {
   const clientId = clientIdInput.value.trim();
   persistClientId(clientId);
 
+connectButton.addEventListener("click", () => {
+  const clientId = clientIdInput.value.trim();
   if (!clientId) {
     setStatusMessage("Please add a Google OAuth Client ID first.");
     return;
@@ -332,6 +372,10 @@ connectButton.addEventListener("click", () => {
         return;
       }
 
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: SCOPES,
+    callback: (tokenResponse) => {
       accessToken = tokenResponse.access_token;
       setStatusMessage("Gmail connected.");
       refreshButton.disabled = false;
@@ -341,6 +385,7 @@ connectButton.addEventListener("click", () => {
   });
 
   tokenClient.requestAccessToken({ prompt: "consent" });
+  tokenClient.requestAccessToken();
 });
 
 refreshButton.addEventListener("click", () => {

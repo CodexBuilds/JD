@@ -6,6 +6,7 @@ Job applications tracker website.
 
 - Connects to Gmail using OAuth and reads job-application-related emails.
 - Extracts and displays (for emails matching explicit job-application phrases like "Thank you for applying", "Thanks for applying to ...", "under review", etc., while excluding career tips/newsletter-style emails):
+- Extracts and displays (for emails matching explicit job-application phrases like "Thank you for applying", "under review", etc.):
   - company
   - role
   - current status
