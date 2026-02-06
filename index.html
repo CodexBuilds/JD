@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Application Tracker</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://accounts.google.com/gsi/client" defer></script>
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <h1>Job Application Tracker</h1>
+        <p>
+          Connect your Gmail to automatically extract your job applications and
+          track each company's hiring status.
+        </p>
+      </header>
+
+      <section class="controls card">
+        <div class="credentials">
+          <label for="clientId">Google OAuth Client ID</label>
+          <input
+            id="clientId"
+            type="text"
+            placeholder="Paste your Google OAuth Client ID here"
+          />
+          <small>
+            Enter your client ID here (it will be saved in this browser). Create one in Google Cloud Console and enable the Gmail API.
+          </small>
+        </div>
+
+        <div class="actions">
+          <button id="connectButton" type="button">Connect Gmail</button>
+          <button id="refreshButton" type="button" disabled>
+            Refresh Applications
+          </button>
+          <button id="disconnectButton" type="button" disabled>
+            Disconnect
+          </button>
+        </div>
+        <p id="statusMessage" class="status-message"></p>
+      </section>
+
+      <section class="card">
+        <div class="table-header">
+          <h2>Applications</h2>
+          <p id="applicationCount">0 applications loaded</p>
+        </div>
+
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Company (Editable)</th>
+                <th>Role (Editable)</th>
+                <th>Status</th>
+                <th>Email Subject</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="applicationsBody">
+              <tr>
+                <td colspan="5" class="empty-state">
+                  Connect Gmail to load your job applications.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
