@@ -17,6 +17,13 @@ const applicationsBody = document.getElementById("applicationsBody");
 let tokenClient;
 let accessToken = "";
 let isGoogleIdentityLoaded = false;
+/* ---------------- STATE ---------------- */
+
+let tokenClient;
+let accessToken = "";
+let isGoogleIdentityLoaded = false;
+let isConnected = false;
+
 const statusOverrides = new Map();
 const companyOverrides = new Map();
 const roleOverrides = new Map();

@@ -44,14 +44,17 @@ const cleanupText = (value) =>
     .replace(/[\s:|,-]+$/, "")
     .trim();
 
-export const inferStatus = (text) => {
+export const inferStatus = (text = "") => {
   const normalized = text.toLowerCase();
+
   if (normalized.includes("interview") || normalized.includes("screen")) {
     return "screening";
   }
+
   if (normalized.includes("offer") || normalized.includes("congratulations")) {
     return "selected";
   }
+
   if (
     normalized.includes("unfortunately") ||
     normalized.includes("rejected") ||
@@ -114,12 +117,13 @@ export const extractCompany = ({ subject, snippet, bodyText }) => {
   return "Unknown Company";
 };
 
-export const extractRole = ({ subject, snippet, bodyText }) => {
+export const extractRole = ({ subject = "", snippet = "", bodyText = "" }) => {
   const combined = `${subject} ${snippet} ${bodyText}`;
+
   const patterns = [
     /(?:for|as)\s+(?:the\s+)?([A-Za-z][A-Za-z0-9\-/\s]{2,50})\s+(?:role|position)/i,
+    /application\s+(?:for|to)\s+([A-Za-z][A-Za-z0-9\-/\s]{2,50})/i,
     /role\s*[:\-]\s*([A-Za-z][A-Za-z0-9\-/\s]{2,50})/i,
-    /position\s*[:\-]\s*([A-Za-z][A-Za-z0-9\-/\s]{2,50})/i,
   ];
 
   for (const pattern of patterns) {
@@ -139,27 +143,32 @@ const decodeBase64Url = (value) => {
 };
 
 const collectPlainTextParts = (payload) => {
-  if (!payload) {
-    return [];
-  }
+  if (!payload) return [];
 
   const chunks = [];
+
   if (payload.mimeType === "text/plain" && payload.body?.data) {
     chunks.push(decodeBase64Url(payload.body.data));
   }
 
   if (Array.isArray(payload.parts)) {
-    payload.parts.forEach((part) => chunks.push(...collectPlainTextParts(part)));
+    payload.parts.forEach((part) =>
+      chunks.push(...collectPlainTextParts(part))
+    );
   }
 
   return chunks;
 };
 
-const getHeader = (headers, name) =>
-  headers.find((item) => item.name?.toLowerCase() === name.toLowerCase())?.value || "";
+const getHeader = (headers = [], name) =>
+  headers.find(
+    (item) => item.name?.toLowerCase() === name.toLowerCase()
+  )?.value || "";
 
 export const parseApplicationFromMessage = (message) => {
-  const headers = message.payload?.headers || [];
+  if (!message?.payload) return null;
+
+  const headers = message.payload.headers || [];
   const subject = getHeader(headers, "Subject");
   const dateHeader = getHeader(headers, "Date");
   const snippet = message.snippet || "";
