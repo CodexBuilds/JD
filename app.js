@@ -1,5 +1,6 @@
 const SCOPES = "https://www.googleapis.com/auth/gmail.readonly";
 const STATUS_OPTIONS = ["applied", "screening", "selected", "rejected"];
+const CLIENT_ID_STORAGE_KEY = "jobTrackerGoogleClientId";
 
 const clientIdInput = document.getElementById("clientId");
 const connectButton = document.getElementById("connectButton");
@@ -20,6 +21,24 @@ const setStatusMessage = (message) => {
 
 const updateConnectButtonState = () => {
   connectButton.disabled = !isGoogleIdentityLoaded;
+};
+
+const readClientIdFromSources = () => {
+  const urlClientId = new URLSearchParams(window.location.search).get("client_id");
+  if (urlClientId) {
+    return urlClientId.trim();
+  }
+
+  return (localStorage.getItem(CLIENT_ID_STORAGE_KEY) || "").trim();
+};
+
+const persistClientId = (value) => {
+  if (value) {
+    localStorage.setItem(CLIENT_ID_STORAGE_KEY, value);
+    return;
+  }
+
+  localStorage.removeItem(CLIENT_ID_STORAGE_KEY);
 };
 
 const decodeBase64Url = (value) => {
@@ -198,6 +217,7 @@ connectButton.addEventListener("click", () => {
   }
 
   const clientId = clientIdInput.value.trim();
+  persistClientId(clientId);
   if (!clientId) {
     setStatusMessage("Please add a Google OAuth Client ID first.");
     return;
@@ -246,8 +266,17 @@ disconnectButton.addEventListener("click", () => {
   setStatusMessage("Disconnected from Gmail.");
 });
 
+const initialClientId = readClientIdFromSources();
+if (initialClientId) {
+  clientIdInput.value = initialClientId;
+}
+
+clientIdInput.addEventListener("input", () => {
+  persistClientId(clientIdInput.value.trim());
+});
+
 updateConnectButtonState();
-setStatusMessage("Loading Google Identity services...");
+setStatusMessage("Loading Google Identity services... Enter your Google OAuth Client ID in the input box above.");
 
 if (document.readyState === "complete") {
   initializeGoogleIdentityIfReady();

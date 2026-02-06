@@ -30,6 +30,7 @@ Then open http://localhost:4173.
 4. Create an OAuth **Web application** client ID.
 5. Add `http://localhost:4173` as an allowed JavaScript origin.
 6. Paste the client ID into the app and click **Connect Gmail**.
+7. The app saves the Client ID in your browser for next time (or you can prefill with `?client_id=YOUR_CLIENT_ID` in the URL).
 
 ## Troubleshooting
 
